@@ -12,8 +12,6 @@ public:
     explicit tray_popup(void* app);
 
 public:
-    void update_mpc();
-
     void add_device(const pulse_client::device_info& device);
     void update_device(const pulse_client::device_info& device);
     void remove_device(const pulse_client::device_info& device);
@@ -35,4 +33,6 @@ private:
     QAction *m_mpc_action{nullptr};
 
     void* m_application{ nullptr };
+
+    bool m_dirty{ true };
 };

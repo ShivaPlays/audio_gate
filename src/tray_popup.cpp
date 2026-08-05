@@ -16,11 +16,6 @@ tray_popup::tray_popup(void* app)
     setup_ui();
 }
 
-void tray_popup::update_mpc()
-{
-
-}
-
 void tray_popup::add_device(const pulse_client::device_info& device)
 {
     auto* app_instance = QCoreApplication::instance();
@@ -47,6 +42,8 @@ void tray_popup::add_device(const pulse_client::device_info& device)
     {
         *it = device;
     }
+
+    m_dirty = true;
 }
 
 void tray_popup::update_device(const pulse_client::device_info& device)
@@ -76,6 +73,8 @@ void tray_popup::update_device(const pulse_client::device_info& device)
         // Fallback: If PipeWire updates a device before emitting an add event
         m_devices.push_back(device);
     }
+
+    m_dirty = true;
 }
 
 void tray_popup::remove_device(const pulse_client::device_info& device)
@@ -94,6 +93,8 @@ void tray_popup::remove_device(const pulse_client::device_info& device)
     std::erase_if(m_devices, [&](const pulse_client::device_info& d) {
         return d.name == device.name;
     });
+
+    m_dirty = true;
 }
 
 void tray_popup::set_current_output_device(std::string device_name)
@@ -137,6 +138,8 @@ void tray_popup::setup_ui()
 
 void tray_popup::rebuild_device_menu()
 {
+    if (!m_dirty) return;
+
     // Clear old QAction items from the menu and group
     m_device_menu->clear();
 
@@ -161,4 +164,6 @@ void tray_popup::rebuild_device_menu()
 
         m_device_group.addAction(action);
     }
+
+    m_dirty = false;
 }
