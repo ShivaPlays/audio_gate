@@ -29,7 +29,7 @@ public:
 protected:
 
 private:
-    void init_pulse();
+    bool init_pulse();
 
     std::unique_ptr<tray_popup> m_tray_popup;
 

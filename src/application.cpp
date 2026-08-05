@@ -48,7 +48,7 @@ void application::set_output_device(const std::string& device_name)
 
 int application::exec(int argc, char* argv[])
 {
-    init_pulse();
+    if (!init_pulse()) return 1;
 
     QApplication app{argc, argv};
     QApplication::setQuitOnLastWindowClosed(false);
@@ -87,11 +87,21 @@ int application::exec(int argc, char* argv[])
     return QApplication::exec();
 }
 
-void application::init_pulse()
+bool application::init_pulse()
 {
     m_pulse_client.set_device_event_callback([this](pulse_client::device_event_type device_event, const pulse_client::device_info& device_info)
     {
         if (m_tray_popup == nullptr || device_info.type == pulse_client::device_type::source) return;
+
+        constexpr auto reserved_device_names = std::array<std::string_view, 4>
+       {
+           "System_Audio_Bridge",
+           "Zoom_Output_Bridge",
+           "Zoom_Virtual_Mic_Backend",
+           "Zoom_Virtual_Mic",
+       };
+
+        if (std::ranges::contains(reserved_device_names, device_info.name)) return;
 
         switch (device_event)
         {
@@ -109,6 +119,8 @@ void application::init_pulse()
         }
     });
 
+    if (m_pulse_client.device_exists("System_Audio_Bridge")) return false;
+
     m_default_sink_name = m_pulse_client.get_default_sink();
 
     m_sys_bridge.create("System_Audio_Bridge", "System_Audio_Bridge");
@@ -121,4 +133,6 @@ void application::init_pulse()
     m_zoom_loop.create("Zoom_Output_Bridge.monitor", m_default_sink_name);
 
     m_pulse_client.set_default_sink("System_Audio_Bridge");
+
+    return true;
 }

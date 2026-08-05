@@ -45,6 +45,8 @@ public:
 
     [[nodiscard]] std::vector<device_info> get_devices() const;
 
+    [[nodiscard]] bool device_exists(const std::string& device_name);
+
     uint32_t load_module(const std::string& name, const std::string& args);
     void unload_module(uint32_t module_index);
     void set_default_sink(const std::string& sink_name);

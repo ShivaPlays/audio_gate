@@ -295,6 +295,87 @@ std::vector<pulse_client::device_info> pulse_client::get_devices() const
     return m_device_cache;
 }
 
+bool pulse_client::device_exists(const std::string& device_name)
+{
+    if (device_name.empty() || !ensure_connected() || !m_context || !m_mainloop)
+    {
+        return false;
+    }
+
+    struct search_state
+    {
+        std::string target_name;
+        pa_threaded_mainloop* mainloop{nullptr};
+        bool found{false};
+        bool sink_done{false};
+        bool source_done{false};
+    } state{ device_name, m_mainloop, false, false, false };
+
+    pa_threaded_mainloop_lock(m_mainloop);
+
+    if (pa_context_get_state(m_context) != PA_CONTEXT_READY)
+    {
+        pa_threaded_mainloop_unlock(m_mainloop);
+        return false;
+    }
+
+    // Query both Sinks (playback) and Sources (recording/monitors) directly from PulseAudio server
+    pa_operation* op_sink = pa_context_get_sink_info_list(
+        m_context,
+        [](pa_context*, const pa_sink_info* info, int eol, void* userdata) {
+            auto* s = static_cast<search_state*>(userdata);
+            if (eol > 0)
+            {
+                s->sink_done = true;
+            }
+            else if (info && info->name && s->target_name == info->name)
+            {
+                s->found = true;
+                s->sink_done = true;
+            }
+            pa_threaded_mainloop_signal(s->mainloop, 0);
+        },
+        &state
+    );
+
+    pa_operation* op_source = pa_context_get_source_info_list(
+        m_context,
+        [](pa_context*, const pa_source_info* info, int eol, void* userdata) {
+            auto* s = static_cast<search_state*>(userdata);
+            if (eol > 0) {
+                s->source_done = true;
+            }
+            else if (info && info->name && s->target_name == info->name)
+            {
+                s->found = true;
+                s->source_done = true;
+            }
+            pa_threaded_mainloop_signal(s->mainloop, 0);
+        },
+        &state
+    );
+
+    if (!op_sink || !op_source)
+    {
+        if (op_sink) pa_operation_unref(op_sink);
+        if (op_source) pa_operation_unref(op_source);
+        pa_threaded_mainloop_unlock(m_mainloop);
+        return false;
+    }
+
+    // Wait until found or both operations complete
+    while (!state.found && (!state.sink_done || !state.source_done))
+    {
+        pa_threaded_mainloop_wait(m_mainloop);
+    }
+
+    pa_operation_unref(op_sink);
+    pa_operation_unref(op_source);
+    pa_threaded_mainloop_unlock(m_mainloop);
+
+    return state.found;
+}
+
 bool pulse_client::reconnect()
 {
     disconnect();
