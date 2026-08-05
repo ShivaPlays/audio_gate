@@ -1,0 +1,20 @@
+# Ignore everything by default
+*
+
+# Explicitly track essential files
+!/.gitignore
+!/CMakeLists.txt
+!/README.md
+
+# Explicitly track source and config directories & their contents
+!/cmake/
+!/cmake/**
+!/include/
+!/include/**
+!/src/
+!/src/**
+!/assets/
+!/assets/**
+!/resources/
+!/resources/**
+
