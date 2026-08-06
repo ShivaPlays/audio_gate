@@ -3,6 +3,8 @@ module;
 #include <QSystemTrayIcon>
 #include <QIcon>
 #include <QGuiApplication>
+#include <QProcess>
+#include <QStandardPaths>
 #include <thread>
 #include <memory>
 #include <chrono>
@@ -14,6 +16,8 @@ application::application() noexcept = default;
 
 application::~application()
 {
+    if (m_mpd_available) QProcess::startDetached("systemctl", {"--user", "stop", "mpd"});
+
     // 1. Restore default sink FIRST while virtual devices are still alive
     if (!m_default_sink_name.empty())
     {
@@ -53,6 +57,12 @@ int application::exec(int argc, char* argv[])
     QApplication app{argc, argv};
     QApplication::setQuitOnLastWindowClosed(false);
 
+    m_mpd_available = !QStandardPaths::findExecutable("mpd").isEmpty();
+    if (m_mpd_available)
+    {
+        QProcess::startDetached("sh", {"-c", "systemctl --user start mpd && mpc update"});
+    }
+
     QSystemTrayIcon tray_icon;
     auto app_icon = QIcon(":/icons/tray_icon.png");
     tray_icon.setIcon(app_icon);
@@ -78,6 +88,7 @@ int application::exec(int argc, char* argv[])
 
     for (auto& device : result) m_tray_popup->add_device(device);
     m_tray_popup->set_current_output_device(m_default_sink_name);
+    m_tray_popup->set_mpd_available(m_mpd_available);
 
     // 2. Set as context menu: Plasma handles positioning and Wayland input grabs natively
     tray_icon.setContextMenu(m_tray_popup.get());
@@ -136,3 +147,4 @@ bool application::init_pulse()
 
     return true;
 }
+

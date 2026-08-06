@@ -18,6 +18,8 @@ public:
 
     void set_current_output_device(std::string device_name);
 
+    void set_mpd_available(bool value) noexcept { if (m_mpc_action) m_mpc_action->setEnabled(value); }
+
 protected:
 
 private:
@@ -30,9 +32,10 @@ private:
     std::string m_output_device_name;
 
     QMenu* m_device_menu{ nullptr };
-    QAction *m_mpc_action{nullptr};
+    QAction* m_mpc_action{nullptr};
 
     void* m_application{ nullptr };
 
     bool m_dirty{ true };
+    bool m_mpd_available{ false };
 };

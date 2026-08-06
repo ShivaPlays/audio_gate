@@ -122,13 +122,6 @@ void tray_popup::setup_ui()
         QProcess::startDetached("mpc", QStringList() << "update");
     });
 
-    // Check if the 'mpc' binary is installed in system PATH
-    QString mpc_path = QStandardPaths::findExecutable("mpc");
-    bool mpc_installed = !mpc_path.isEmpty();
-
-    m_mpc_action->setEnabled(mpc_installed);
-    if (!mpc_installed) m_mpc_action->setToolTip("mpc is not installed on this system");
-
     addSeparator();
 
     // --- Quit Action ---

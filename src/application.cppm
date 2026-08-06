@@ -45,4 +45,6 @@ private:
     loopback m_zoom_loop{ m_pulse_client };
 
     std::string m_default_sink_name{};
+
+    bool m_mpd_available{ false };
 };
