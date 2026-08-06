@@ -6,8 +6,12 @@ module loopback;
 
 void loopback::create(const std::string& source, const std::string &sink)
 {
-    // PulseAudio module-loopback routes audio from a source (mic/monitor) to a sink (speakers/virtual sink)
-    std::string args = "source=" + source + " sink=" + sink;
+    // 1. dont_remember=true tells PipeWire/WirePlumber NOT to save/restore state for this module
+    // 2. node.name gives it a static identity rather than generating ephemeral auto-names
+    std::string args = "source=" + source
+                     + " sink=" + sink
+                     + " dont_remember=true"
+                     + " node.name=app_loopback_" + source + "_" + sink;
 
     set_module_id(get_pulse_client().load_module("module-loopback", args));
 }
