@@ -256,10 +256,11 @@ void pulse_client::process_device_update(device_event_type event_type, const dev
     {
         std::scoped_lock lock(m_cache_mutex);
 
-        auto it = std::find_if(m_device_cache.begin(), m_device_cache.end(),
-            [index = info.index, type = info.type](const device_info& item) {
-                return item.index == index && item.type == type;
-            }
+        auto it = std::ranges::find_if(m_device_cache,
+                                       [index = info.index, type = info.type](const auto& item)
+                                       {
+                                           return item.index == index && item.type == type;
+                                       }
         );
 
         if (event_type == device_event_type::added || event_type == device_event_type::changed)
@@ -322,7 +323,8 @@ bool pulse_client::device_exists(const std::string& device_name)
     // Query both Sinks (playback) and Sources (recording/monitors) directly from PulseAudio server
     pa_operation* op_sink = pa_context_get_sink_info_list(
         m_context,
-        [](pa_context*, const pa_sink_info* info, int eol, void* userdata) {
+        [](pa_context*, const pa_sink_info* info, int eol, void* userdata)
+        {
             auto* s = static_cast<search_state*>(userdata);
             if (eol > 0)
             {
@@ -340,9 +342,11 @@ bool pulse_client::device_exists(const std::string& device_name)
 
     pa_operation* op_source = pa_context_get_source_info_list(
         m_context,
-        [](pa_context*, const pa_source_info* info, int eol, void* userdata) {
+        [](pa_context*, const pa_source_info* info, int eol, void* userdata)
+        {
             auto* s = static_cast<search_state*>(userdata);
-            if (eol > 0) {
+            if (eol > 0)
+            {
                 s->source_done = true;
             }
             else if (info && info->name && s->target_name == info->name)
@@ -401,7 +405,8 @@ uint32_t pulse_client::load_module(const std::string& name, const std::string& a
 
     pa_operation* op = pa_context_load_module(
         m_context, name.c_str(), args.c_str(),
-        [](pa_context*, uint32_t idx, void* userdata) {
+        [](pa_context*, uint32_t idx, void* userdata)
+        {
             auto* c = static_cast<load_context*>(userdata);
             *c->index = idx;
             *c->done = true;
@@ -446,7 +451,8 @@ void pulse_client::unload_module(uint32_t module_index)
 
     pa_operation* op = pa_context_unload_module(
         m_context, module_index,
-        [](pa_context*, int success, void* userdata) {
+        [](pa_context*, int success, void* userdata)
+        {
             auto* c = static_cast<unload_context*>(userdata);
             *c->done = true;
             pa_threaded_mainloop_signal(c->mainloop, 0);
@@ -483,8 +489,9 @@ void pulse_client::set_default_sink(const std::string& sink_name)
     pa_operation* op = pa_context_set_default_sink(
         m_context,
         sink_name.c_str(),
-        [](pa_context*, int success, void* userdata) {
-            auto* c = static_cast<default_sink_context*>(userdata);
+        [](pa_context*, int success, void* userdata)
+        {
+            auto c = static_cast<default_sink_context*>(userdata);
             *c->done = true;
             pa_threaded_mainloop_signal(c->mainloop, 0);
         },
@@ -520,7 +527,8 @@ std::string pulse_client::get_default_sink()
 
     pa_operation* op = pa_context_get_server_info(
         m_context,
-        [](pa_context*, const pa_server_info* i, void* userdata) {
+        [](pa_context*, const pa_server_info* i, void* userdata)
+        {
             auto* ctx = static_cast<server_info_context*>(userdata);
             if (i && i->default_sink_name)
             {
@@ -560,14 +568,17 @@ void pulse_client::evict_streams_from_sink(const std::string& source_sink_name, 
         uint32_t* idx;
         bool* done;
         pa_threaded_mainloop* mainloop;
-    } s_ctx{ &source_sink_idx, &sink_query_done, m_mainloop };
+    };
+    sink_ctx s_ctx{ &source_sink_idx, &sink_query_done, m_mainloop };
 
     pa_operation* sink_op = pa_context_get_sink_info_by_name(
         m_context,
         source_sink_name.c_str(),
-        [](pa_context*, const pa_sink_info* i, int eol, void* userdata) noexcept {
+        [](pa_context*, const pa_sink_info* i, int eol, void* userdata) noexcept
+        {
             auto* ctx = static_cast<sink_ctx*>(userdata);
-            if (eol != 0) {
+            if (eol != 0)
+            {
                 *ctx->done = true;
                 pa_threaded_mainloop_signal(ctx->mainloop, 0);
                 return;
@@ -596,13 +607,16 @@ void pulse_client::evict_streams_from_sink(const std::string& source_sink_name, 
         const char* target_sink;
         bool done{ false };
         pa_threaded_mainloop* mainloop;
-    } e_ctx{ source_sink_idx, target_sink_name.c_str(), false, m_mainloop };
+    };
+    evict_ctx e_ctx{ source_sink_idx, target_sink_name.c_str(), false, m_mainloop };
 
     pa_operation* op = pa_context_get_sink_input_info_list(
         m_context,
-        [](pa_context* c, const pa_sink_input_info* i, int eol, void* userdata) noexcept {
+        [](pa_context* c, const pa_sink_input_info* i, int eol, void* userdata) noexcept
+        {
             auto* ctx = static_cast<evict_ctx*>(userdata);
-            if (eol != 0) {
+            if (eol != 0)
+            {
                 ctx->done = true;
                 pa_threaded_mainloop_signal(ctx->mainloop, 0);
                 return;
@@ -653,7 +667,8 @@ bool pulse_client::move_sink_input_to_sink(uint32_t sink_input_idx, const std::s
         m_context,
         sink_input_idx,
         new_sink_name.c_str(),
-        [](pa_context*, int success, void* userdata) {
+        [](pa_context*, int success, void* userdata)
+        {
             auto* c = static_cast<move_context*>(userdata);
             *c->success = (success != 0);
             *c->done = true;
@@ -693,7 +708,8 @@ uint32_t pulse_client::get_sink_input_for_module(uint32_t module_index)
 
     pa_operation* op = pa_context_get_sink_input_info_list(
         m_context,
-        [](pa_context*, const pa_sink_input_info* i, int eol, void* userdata) {
+        [](pa_context*, const pa_sink_input_info* i, int eol, void* userdata)
+        {
             auto* ctx = static_cast<search_context*>(userdata);
 
             // Correct EOL handling: non-zero means list enumeration ended or failed
